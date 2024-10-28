@@ -1,0 +1,132 @@
+---
+title: "Data Challenge #1: Dairy Cow Visualizations"
+author: "Vaishnavi Sathiyamoorthy"
+format: html
+editor: visual
+---
+
+## Set Up
+
+```{r}
+## load in the required libraries 
+library(readr)
+library(tidyverse)
+library(here)
+library(RColorBrewer)
+
+## read in the data using here() function
+state_milk_production <- read_csv(here("data/state_milk_production.csv"))
+clean_cheese <- read_csv(here("data/clean_cheese.csv"))
+fluid_milk_sales <- read_csv(here("data/fluid_milk_sales.csv"))
+milk_products_facts <- read_csv(here("data/milk_products_facts.csv"))
+milkcow_facts <- read_csv(here("data/milkcow_facts.csv"))
+
+## disable scientific notation
+options(scipen = 999)
+```
+
+## Figure 1
+
+```{r}
+# data points are colored 
+ggplot(milkcow_facts, aes(avg_milk_cow_number, # x axis is num of milk cows
+                          milk_production_lbs / 1000000, # y axis has milk production divided by 1 million
+                          color = year)) + 
+  geom_point() + # scatterplot
+  labs(title = "The Average Number of Milk Cows vs Milk Production",
+       x = "Average Number of Milk Cows",
+       y = "Milk Production (lbs in Millions)",
+       color = "Year")
+```
+
+*Figure 1. This scatterplot shows the average number of milk cows on the x axis and the milk production in millions on the y axis. The data points are colored by the year these data points were taken. As time has progressed it's seen that the number of milk cows has decreased and the milk production has increased. In fact, from 2000, the number of milk cows has stayed somewhat consistent, but the amount of milk production has increased by nearly 4e10 lbs.*
+
+## Figure 2
+
+```{r}
+state_milk_production %>% 
+  group_by(region, year) %>% # grouped by year and region
+  summarize("total" = sum(milk_produced) / 1000000) %>% # total milk production is divided by 1 million
+  ggplot(aes(x = year, # x axis is year
+             y = total, # y axis is total consumption
+             color = region)) + # colored by the regions
+  geom_line() + # line graph
+  facet_wrap(~region) + # different graph for each region
+  labs(title = "Total Milk Production by Year by Region",
+       x = "Year",
+       y = "Total Milk Production (in millions)",
+       color = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), # rotates the x axis tick titles by 45 degrees
+        legend.position = "none")
+```
+
+*Figure 2. This is a line graph that shows how milk production has changed over the years based on the region. There seems to be an increase over time in the Lake States, Southern Plains, Pacific, and Mountains. There seems to be a decrease in the Appalachians and Delta States. Northeast and Northern Plains seems to remain relatively the same over time.*
+
+## Figure 3
+
+```{r}
+fluid_milk_sales %>% 
+  group_by(milk_type, year) %>% # grouped by milk type and then year
+  filter(milk_type != "Total Production") %>% # the rows with milk type as total production are removed
+  summarise("Total" = sum(pounds)) %>% # the total pounds is calculated based on how it is grouped
+  ggplot(aes(x = year, # x axis is year
+             y = log(Total), # y axis is the log of the total
+             color = milk_type)) + # colored by milk type
+  geom_line() + # line graph
+  labs(title = "Milk Type Production by Year",
+       x = "Year",
+       y = "Log of Milk Production",
+       color = "Type of Milk")
+```
+
+*Figure 3. This line plot shows the log of total milk production for each category by year. Over time, there has been an increase in eggnog and flavored non-whole milk production. The production of buttermilk, flavored whole milk, and whole milk went down. Skim milk production increased and then decreased over time.*
+
+## Figure 4
+
+```{r}
+# new variable created
+clean_cheese_long <- clean_cheese %>% 
+  select(1:13) %>% # first 13 columns are chosen
+  pivot_longer(cols = 2:13, # all columns except for year is selected for pivoting
+               names_to = "Cheese_Category", 
+               values_to = "Pounds")
+
+clean_cheese_long %>%
+  ggplot(aes(x = Year, # x axis is year
+             y = Pounds, # y axis is in lbs
+             fill = Cheese_Category)) + # fill of bar graph is based on cheese category
+  geom_bar(stat = "identity", # bar plot. the values that are given are plotted 
+           position = "stack") + # stacked bar plot
+  labs(x = "Year", 
+       y = "Cheese Consumption (lbs)", 
+       title = "Cheese Category Pounds Over Time", 
+       fill = "Cheese") +
+  scale_fill_brewer(palette = "Set3")
+```
+
+*Figure 4. This is a bar graph that shows the amount of cheese consumed by each category, but also the overall cheese consumption. It is clear that over the years the amount of cheese consumed has increased. Mozzarella and Cheddar increased the most over this time period. Foods and Spreads has decreased over time. Swiss consumption has stayed consistent through the years.*
+
+## Figure 5
+
+```{r}
+# new merged dataset
+merged <- inner_join(milk_products_facts, # inner join of 2 datasets
+                     milkcow_facts) %>% 
+  mutate(total_ice_cream = frozen_ice_cream_regular + frozen_ice_cream_reduced_fat) # new column created
+
+ggplot(merged, aes(x = year)) +
+  geom_line(aes(y = total_ice_cream, # ice cream line
+                color = "Total Ice Cream Consumption")) +
+  geom_line(aes(y = fluid_yogurt, # yogurt line
+                color = "Yogurt Consumption")) +
+  scale_color_manual(values = c("Total Ice Cream Consumption" = "red", 
+                                "Yogurt Consumption" = "green")) +
+  labs(title = "Yogurt and Ice Cream Consumption Over Time",
+       x = "Year", 
+       y = "Consumption (lbs)", 
+       color = "") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+*Figure 5. This line graph looks at the ice cream consumption and yogurt consumption over time. The ice cream consumption is shown in red and the yogurt consumption is shown in green. Ice cream consumption has gradually decreased over time. Yogurt consumption has increase greatly.*
